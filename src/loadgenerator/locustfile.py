@@ -15,10 +15,42 @@
 # limitations under the License.
 
 import random
-from locust import FastHttpUser, TaskSet, between
+from locust import FastHttpUser, TaskSet, LoadTestShape, between
 from faker import Faker
 import datetime
+import math
 fake = Faker()
+
+class ThresholdRampShape(LoadTestShape):
+    """
+    Ramps VUs upward in fixed steps until p95 latency exceeds
+    LATENCY_THRESHOLD_MS, at which point the test stops.
+    """
+    initial_users = 20
+    step_load = 10
+    step_time = 120          # dwell time per step (seconds)
+    spawn_rate = 10
+    latency_threshold_ms = 500   # your agreed threshold
+    max_time_limit = 3600        # safety cap, in case threshold is never hit
+
+    def tick(self):
+        run_time = self.get_run_time()
+
+        if run_time > self.max_time_limit:
+            return None  # safety stop
+
+        current_step = math.floor(run_time / self.step_time)
+
+        # Only check latency once we're past the first step's warm-up
+        if current_step >= 1:
+            p95 = self.runner.stats.total.get_current_response_time_percentile(0.95)
+            if p95 is not None and p95 > self.latency_threshold_ms:
+                print(f"Saturation reached: p95={p95}ms at step {current_step} "
+                      f"({self.initial_users + current_step * self.step_load} users)")
+                return None  # stop the test — this step's VU count is your VU_max
+
+        user_count = self.initial_users + current_step * self.step_load
+        return (user_count, self.spawn_rate)
 
 products = [
     '0PUK6V6EV0',
