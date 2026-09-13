@@ -29,9 +29,8 @@ class ThresholdRampShape(LoadTestShape):
     LATENCY_THRESHOLD_MS, at which point the test stops.
     """
     initial_users = 20
-    step_load = 10
+    step_load = spawn_rate = 10
     step_time = 120          # dwell time per step (seconds)
-    spawn_rate = 10
     latency_threshold_ms = 500
     max_time_limit = 3600        # safety cap, in case threshold is never hit
 
@@ -42,7 +41,7 @@ class ThresholdRampShape(LoadTestShape):
         run_time = self.get_run_time()
 
         if run_time > self.max_time_limit:
-            return None  # safety stop
+            return None
 
         current_step = math.floor(run_time / self.step_time)
         if current_step != self.last_step:
@@ -59,7 +58,7 @@ class ThresholdRampShape(LoadTestShape):
                 if self.current_break >= LATENCY_MAX_BREAKS:
                     print(f"Saturation reached: p95={p95}ms at step {current_step} "
                           f"({self.initial_users + current_step * self.step_load} users)")
-                    return None  # stop the test — this step's VU count is your VU_max
+                    return None
 
         user_count = self.initial_users + current_step * self.step_load
         return (user_count, self.spawn_rate)
