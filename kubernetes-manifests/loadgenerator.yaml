@@ -29,6 +29,13 @@ spec:
       annotations:
         sidecar.istio.io/rewriteAppHTTPProbers: "true"
     spec:
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "loadgen"
+          effect: "NoSchedule"
+      nodeSelector:
+        kubernetes.io/hostname: worker-2
       serviceAccountName: loadgenerator
       terminationGracePeriodSeconds: 5
       restartPolicy: Always
@@ -77,14 +84,15 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: loadgenerator
+        image: loadgenerator:latest
+        imagePullPolicy: "Never"
         env:
         - name: FRONTEND_ADDR
           value: "frontend:80"
         - name: USERS
-          value: "10"
+          value: "20"
         - name: RATE
-          value: "1"
+          value: "10"
         resources:
           requests:
             cpu: 300m
