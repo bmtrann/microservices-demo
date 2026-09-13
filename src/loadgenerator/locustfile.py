@@ -20,6 +20,8 @@ from faker import Faker
 import datetime
 import math
 fake = Faker()
+LATENCY_WINDOW_CHECK = 30
+LATENCY_MAX_BREAKS = 3
 
 class ThresholdRampShape(LoadTestShape):
     """
@@ -30,8 +32,11 @@ class ThresholdRampShape(LoadTestShape):
     step_load = 10
     step_time = 120          # dwell time per step (seconds)
     spawn_rate = 10
-    latency_threshold_ms = 500   # your agreed threshold
+    latency_threshold_ms = 500
     max_time_limit = 3600        # safety cap, in case threshold is never hit
+
+    current_break = 0
+    last_step = -1
 
     def tick(self):
         run_time = self.get_run_time()
@@ -40,14 +45,21 @@ class ThresholdRampShape(LoadTestShape):
             return None  # safety stop
 
         current_step = math.floor(run_time / self.step_time)
+        if current_step != self.last_step:
+            self.last_step = current_step
+            self.current_break = 0
 
         # Only check latency once we're past the first step's warm-up
         if current_step >= 1:
             p95 = self.runner.stats.total.get_current_response_time_percentile(0.95)
             if p95 is not None and p95 > self.latency_threshold_ms:
-                print(f"Saturation reached: p95={p95}ms at step {current_step} "
-                      f"({self.initial_users + current_step * self.step_load} users)")
-                return None  # stop the test — this step's VU count is your VU_max
+                # check sustained latency spike
+                if run_time % LATENCY_WINDOW_CHECK == 0: self.current_break += 1
+
+                if self.current_break >= LATENCY_MAX_BREAKS:
+                    print(f"Saturation reached: p95={p95}ms at step {current_step} "
+                          f"({self.initial_users + current_step * self.step_load} users)")
+                    return None  # stop the test — this step's VU count is your VU_max
 
         user_count = self.initial_users + current_step * self.step_load
         return (user_count, self.spawn_rate)
