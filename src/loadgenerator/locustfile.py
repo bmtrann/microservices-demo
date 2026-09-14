@@ -32,12 +32,11 @@ class ThresholdRampShape(LoadTestShape):
     initial_users = 10
     step_load = spawn_rate = 5
     step_time = 180          # dwell time per step (seconds)
-    latency_threshold_ms = 500
+    latency_threshold_ms = 1000
     max_time_limit = 3600        # safety cap, in case threshold is never hit
 
     current_break = 0
-    last_step = -1
-    step_start_time = None
+    step_start_time, last_latency_check = None, None
 
     def tick(self):
         run_time = self.get_run_time()
@@ -47,22 +46,25 @@ class ThresholdRampShape(LoadTestShape):
 
         current_step = math.floor(run_time / self.step_time)
         if current_step != self.last_step:
-            self.last_step = current_step
             self.current_break = 0
             self.step_start_time = time.time()
+            self.last_latency_check = time.time()
 
         # Only check latency once we're past the first step's warm-up
         if current_step >= 1:
+            now = time.time()
+            if now - self.last_latency_check >= LATENCY_WINDOW_CHECK:
+                self.last_latency_check = now
+                
             p95 = self.runner.stats.total.get_current_response_time_percentile(0.95)
             if p95 is not None and p95 > self.latency_threshold_ms:
-                # check sustained latency spike
-                if current_step == self.last_step and (time.time() - self.step_start_time) % LATENCY_WINDOW_CHECK == 0:
-                    self.current_break += 1
+                self.current_break += 1
+            else: self.current_break = 0
 
-                if self.current_break >= LATENCY_MAX_BREAKS:
-                    print(f"Saturation reached: p95={p95}ms at step {current_step} "
-                          f"({self.initial_users + current_step * self.step_load} users)")
-                    return None
+            if self.current_break >= LATENCY_MAX_BREAKS:
+                print(f"Saturation reached: p95={p95}ms at step {current_step} "
+                      f"({self.initial_users + current_step * self.step_load} users)")
+                return None
 
         user_count = self.initial_users + current_step * self.step_load
         return (user_count, self.spawn_rate)
