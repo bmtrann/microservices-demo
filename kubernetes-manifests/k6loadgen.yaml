@@ -1,0 +1,17 @@
+---
+apiVersion: k6.io/v1alpha1
+kind: TestRun
+metadata:
+  name: loadgen
+spec:
+  tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "loadgen"
+      effect: "NoSchedule"
+  nodeSelector:
+    kubernetes.io/hostname: worker-2
+  script:
+    configMap:
+      name: 'loadgen-script'
+      file: 'loadgen.js'
