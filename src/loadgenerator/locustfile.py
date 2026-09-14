@@ -36,6 +36,7 @@ class ThresholdRampShape(LoadTestShape):
     max_time_limit = 3600        # safety cap, in case threshold is never hit
 
     current_break = 0
+    last_step = -1
     step_start_time, last_latency_check = None, None
 
     def tick(self):
@@ -46,6 +47,7 @@ class ThresholdRampShape(LoadTestShape):
 
         current_step = math.floor(run_time / self.step_time)
         if current_step != self.last_step:
+            self.last_step = current_step
             self.current_break = 0
             self.step_start_time = time.time()
             self.last_latency_check = time.time()
