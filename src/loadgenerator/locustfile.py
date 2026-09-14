@@ -58,15 +58,15 @@ class ThresholdRampShape(LoadTestShape):
             if now - self.last_latency_check >= LATENCY_WINDOW_CHECK:
                 self.last_latency_check = now
                 
-            p95 = self.runner.stats.total.get_current_response_time_percentile(0.95)
-            if p95 is not None and p95 > self.latency_threshold_ms:
-                self.current_break += 1
-            else: self.current_break = 0
-
-            if self.current_break >= LATENCY_MAX_BREAKS:
-                print(f"Saturation reached: p95={p95}ms at step {current_step} "
-                      f"({self.initial_users + current_step * self.step_load} users)")
-                return None
+                p95 = self.runner.stats.total.get_current_response_time_percentile(0.95)
+                if p95 is not None and p95 > self.latency_threshold_ms:
+                    self.current_break += 1
+                else: self.current_break = 0
+    
+                if self.current_break >= LATENCY_MAX_BREAKS:
+                    print(f"Saturation reached: p95={p95}ms at step {current_step} "
+                          f"({self.initial_users + current_step * self.step_load} users)")
+                    return None
 
         user_count = self.initial_users + current_step * self.step_load
         return (user_count, self.spawn_rate)
