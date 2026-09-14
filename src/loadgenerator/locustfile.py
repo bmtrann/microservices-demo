@@ -18,6 +18,7 @@ import random
 from locust import FastHttpUser, TaskSet, LoadTestShape, constant
 from faker import Faker
 import datetime
+import time
 import math
 fake = Faker()
 LATENCY_WINDOW_CHECK = 30
@@ -28,14 +29,15 @@ class ThresholdRampShape(LoadTestShape):
     Ramps VUs upward in fixed steps until p95 latency exceeds
     LATENCY_THRESHOLD_MS, at which point the test stops.
     """
-    initial_users = 20
-    step_load = spawn_rate = 10
-    step_time = 120          # dwell time per step (seconds)
+    initial_users = 10
+    step_load = spawn_rate = 5
+    step_time = 180          # dwell time per step (seconds)
     latency_threshold_ms = 500
     max_time_limit = 3600        # safety cap, in case threshold is never hit
 
     current_break = 0
     last_step = -1
+    start_time = None
 
     def tick(self):
         run_time = self.get_run_time()
@@ -47,13 +49,15 @@ class ThresholdRampShape(LoadTestShape):
         if current_step != self.last_step:
             self.last_step = current_step
             self.current_break = 0
+            self.start_time = time.time()
 
         # Only check latency once we're past the first step's warm-up
         if current_step >= 1:
             p95 = self.runner.stats.total.get_current_response_time_percentile(0.95)
             if p95 is not None and p95 > self.latency_threshold_ms:
                 # check sustained latency spike
-                if run_time % LATENCY_WINDOW_CHECK == 0: self.current_break += 1
+                if current_step == self.last_step and (time.time() - self.start_time) % LATENCY_WINDOW_CHECK == 0:
+                    self.current_break += 1
 
                 if self.current_break >= LATENCY_MAX_BREAKS:
                     print(f"Saturation reached: p95={p95}ms at step {current_step} "
