@@ -37,7 +37,7 @@ class ThresholdRampShape(LoadTestShape):
 
     current_break = 0
     last_step = -1
-    start_time = None
+    step_start_time = None
 
     def tick(self):
         run_time = self.get_run_time()
@@ -49,14 +49,14 @@ class ThresholdRampShape(LoadTestShape):
         if current_step != self.last_step:
             self.last_step = current_step
             self.current_break = 0
-            self.start_time = time.time()
+            self.step_start_time = time.time()
 
         # Only check latency once we're past the first step's warm-up
         if current_step >= 1:
             p95 = self.runner.stats.total.get_current_response_time_percentile(0.95)
             if p95 is not None and p95 > self.latency_threshold_ms:
                 # check sustained latency spike
-                if current_step == self.last_step and (time.time() - self.start_time) % LATENCY_WINDOW_CHECK == 0:
+                if current_step == self.last_step and (time.time() - self.step_start_time) % LATENCY_WINDOW_CHECK == 0:
                     self.current_break += 1
 
                 if self.current_break >= LATENCY_MAX_BREAKS:
