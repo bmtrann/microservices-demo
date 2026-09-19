@@ -6,6 +6,7 @@ metadata:
 spec:
   parallelism: 1
   quiet: "false"
+  cleanup: "post"
   runner:
     env:
       - name: K6_WEB_DASHBOARD
@@ -17,6 +18,21 @@ spec:
         effect: "NoSchedule"
     nodeSelector:
       kubernetes.io/hostname: worker-2
+    volumeMounts:
+      - name: test-data
+        mountPath: /test-data
+    volumes:
+      - name: test-data
+        configMap:
+          name: loadgen-script
+  initializer:
+    volumeMounts:
+      - name: test-data
+        mountPath: /test-data
+    volumes:
+      - name: test-data
+        configMap:
+          name: loadgen-script
   script:
     configMap:
       name: 'loadgen-script'
