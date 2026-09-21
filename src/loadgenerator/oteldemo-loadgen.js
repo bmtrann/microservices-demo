@@ -29,7 +29,7 @@ export const options = {
 
 const BASE_URL = __ENV.TARGET_HOST || 'http://frontend-proxy:8080';
 const AGENT_ENDPOINT = __ENV.AGENT_ENDPOINT || 'agent';
-const AGENT_PORT = __ENV.AGENT_PORT || '8010';
+const AGENT_PORT = '8010';
 const FLAGD_HOST = __ENV.FLAGD_HOST || 'flagd';
 const FLAGD_OFREP_PORT = __ENV.FLAGD_OFREP_PORT || '8016';
 const FLAGD_BASE_URL = `http://${FLAGD_HOST}:${FLAGD_OFREP_PORT}`;
@@ -60,7 +60,7 @@ const agent_prompts = [
 
 function getFlagdValue(flagName, defaultValue = 0, context = {}) {
     const res = http.post(
-    `${OFREP_BASE_URL}/ofrep/v1/evaluate/flags/${flagName}`,
+    `${FLAGD_BASE_URL}/ofrep/v1/evaluate/flags/${flagName}`,
     JSON.stringify({ context }),
     { headers: { 'Content-Type': 'application/json' } }
   );
@@ -95,7 +95,7 @@ function uuidv4() {
 function indexTask() {
 	group('index', () => {
 		const res = http.get(`${BASE_URL}/`);
-		check(res, { 'index ok': (r) => r.status < 400 });
+		check(res, { 'index ok': (r) => r.status >= 200 && r.status < 400 });
 	});
 }
 
@@ -103,7 +103,7 @@ function browseProductTask() {
 	group('browse_product', () => {
 		const product = randomItem(products);
 		const res = http.get(`${BASE_URL}/api/products/${product}`);
-		check(res, { 'browse product ok': (r) => r.status < 400 });
+		check(res, { 'browse product ok': (r) => r.status >= 200 && r.status < 400 });
 	});
 }
 
@@ -113,7 +113,7 @@ function getRecommendationsTask() {
 		const url = `${BASE_URL}/api/recommendations`;
 		const params = { params: { productIds: product } };
 		const res = http.get(url + `?productIds=${encodeURIComponent(product)}`);
-		check(res, { 'recommendations ok': (r) => r.status < 400 });
+		check(res, { 'recommendations ok': (r) => r.status >= 200 && r.status < 400 });
 	});
 }
 
@@ -122,14 +122,14 @@ function getAdsTask() {
 		const category = randomItem(categories);
 		const q = category === null ? '' : `?contextKeys=${encodeURIComponent(category)}`;
 		const res = http.get(`${BASE_URL}/api/data/${q}`);
-		check(res, { 'get ads ok': (r) => r.status < 400 });
+		check(res, { 'get ads ok': (r) => r.status >= 200 && r.status < 400 });
 	});
 }
 
 function viewCartTask() {
 	group('view_cart', () => {
 		const res = http.get(`${BASE_URL}/api/cart`);
-		check(res, { 'view cart ok': (r) => r.status < 400 });
+		check(res, { 'view cart ok': (r) => r.status >= 200 && r.status < 400 });
 	});
 }
 
@@ -145,18 +145,19 @@ function addToCartTask(user) {
 			userId: uid,
 		});
 		const res = http.post(`${BASE_URL}/api/cart`, payload, { headers: { 'Content-Type': 'application/json' } });
-		check(res, { 'add to cart ok': (r) => r.status < 400 });
+		check(res, { 'add to cart ok': (r) => r.status >= 200 && r.status < 400 });
 		return { userId: uid, product, quantity };
 	});
 }
 
 function checkoutTask() {
 	group('checkout', () => {
-		const cart = addToCartTask();
+		const user = uuidv4();
+		const cart = addToCartTask(user);
 		const person = Object.assign({}, randomItem(people));
-		person.userId = cart.userId;
+		person.userId = user;
 		const res = http.post(`${BASE_URL}/api/checkout`, JSON.stringify(person), { headers: { 'Content-Type': 'application/json' } });
-		check(res, { 'checkout ok': (r) => r.status < 400 });
+		check(res, { 'checkout ok': (r) => r.status >= 200 && r.status < 400 });
 	});
 }
 
@@ -170,7 +171,7 @@ function checkoutMultiTask() {
 		const person = Object.assign({}, randomItem(people));
 		person.userId = userId;
 		const res = http.post(`${BASE_URL}/api/checkout`, JSON.stringify(person), { headers: { 'Content-Type': 'application/json' } });
-		check(res, { 'checkout multi ok': (r) => r.status < 400 });
+		check(res, { 'checkout multi ok': (r) => r.status >= 200 && r.status < 400 });
 	});
 }
 
@@ -180,7 +181,8 @@ function floodHomeTask() {
 		
 		if (floodCount > 0) {
 			for (let i = 0; i < floodCount; i++) {
-				http.get(`${BASE_URL}/`);
+				const res = http.get(`${BASE_URL}/`);
+				check(res, { 'index ok': (r) => r.status >= 200 && r.status < 400 });
 			}
 		}
 	});
@@ -191,7 +193,7 @@ function askAgentTask() {
 		const prompt = randomItem(agent_prompts);
 		const url = `http://${AGENT_ENDPOINT}:${AGENT_PORT}/prompt`;
 		const res = http.post(url, JSON.stringify({ message: prompt }), { headers: { 'Content-Type': 'application/json' } });
-		check(res, { 'agent ok': (r) => r.status < 400 });
+		check(res, { 'agent ok': (r) => r.status >= 200 && r.status < 400 });
 	});
 }
 
