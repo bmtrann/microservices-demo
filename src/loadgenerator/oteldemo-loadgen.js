@@ -45,7 +45,7 @@ const categories = [
 
 // load people.json at init time
 const people = new SharedArray('people', function () {
-	    const raw = open('people.json');
+	    const raw = open('/test-data/people.json');
 		return JSON.parse(raw);
 	}
 );
