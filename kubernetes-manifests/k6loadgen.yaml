@@ -6,7 +6,7 @@ metadata:
 spec:
   parallelism: 1
   quiet: "false"
-  cleanup: "post"
+  # cleanup: "post"
   runner:
     env:
       - name: K6_WEB_DASHBOARD
@@ -36,4 +36,4 @@ spec:
   script:
     configMap:
       name: 'loadgen-script'
-      file: 'loadgen.js'
+      file: 'oteldemo-loadgen.js'
